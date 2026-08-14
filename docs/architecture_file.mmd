@@ -1,0 +1,28 @@
+graph TD
+    A[User Uploads Document - PDF DOCX TXT XLSX] --> B[Loader Factory]
+    B --> C1[PDF Loader]
+    B --> C2[DOCX Loader]
+    B --> C3[TXT Loader]
+    B --> C4[Excel Loader]
+    C1 --> D[Raw Documents with metadata]
+    C2 --> D
+    C3 --> D
+    C4 --> D
+    D --> E[Text Chunking - RecursiveCharacterTextSplitter - 1000 chars 150 overlap]
+    E --> F[Embedding - sentence-transformers - all-MiniLM-L6-v2]
+    F --> G[ChromaDB Persisted Vector Store]
+    H[User Question] --> I[Query Rewriter - resolves follow-up pronouns using chat history]
+    I --> J[Similarity Search top-k retrieval]
+    G --> J
+    J --> K[Formatted Context plus Source Citations]
+    K --> L{Endpoint}
+    L -->|chat| M[LangChain QA Chain - Intermediate Level]
+    L -->|agent-chat| N[LangGraph Agent - Advanced Level]
+    M --> O[Groq LLM - Llama 3.3 70B]
+    N --> O
+    O --> P[Answer plus Sources]
+    P --> Q[Update Session Memory]
+    Q --> R[Response to User]
+    style G fill:#4a90d9,color:#fff
+    style O fill:#e8734a,color:#fff
+    style L fill:#f4c542,color:#000

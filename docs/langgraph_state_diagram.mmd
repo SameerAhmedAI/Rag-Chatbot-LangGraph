@@ -1,0 +1,28 @@
+stateDiagram-v2
+    [*] --> Router
+    Router --> Retrieve: route is rag
+    Router --> Generate: route is general
+    Retrieve --> Generate: context attached to state
+    Generate --> Critique: draft_answer produced
+    Critique --> [*]: route is general critique skipped
+    Critique --> Refine: unsupported claims detected
+    Critique --> [*]: answer well-grounded
+    Refine --> [*]: final_answer rewritten
+
+    note right of Router
+        Classifies question as
+        needing document retrieval
+        vs general conversation
+    end note
+
+    note right of Retrieve
+        Query rewriter resolves
+        follow-up pronouns before
+        similarity search runs
+    end note
+
+    note right of Critique
+        Self-checks draft against
+        retrieved context for
+        unsupported claims
+    end note

@@ -1,0 +1,36 @@
+sequenceDiagram
+    participant U as User
+    participant API as FastAPI
+    participant Load as Ingestion Layer
+    participant Chunk as Chunker
+    participant Embed as Embedder
+    participant Chroma as ChromaDB
+    participant RW as Query Rewriter
+    participant LLM as Groq LLM
+    participant Mem as Session Memory
+
+    Note over U,Mem: Document Upload Flow
+    U->>API: POST upload file
+    API->>Load: load_document file
+    Load-->>API: raw Documents plus metadata
+    API->>Chunk: chunk_documents docs
+    Chunk-->>API: chunked Documents
+    API->>Embed: embed chunks
+    Embed->>Chroma: add_documents chunks
+    Chroma-->>API: chunks indexed
+    API-->>U: chunks_indexed status
+
+    Note over U,Mem: Conversational Query Flow
+    U->>API: POST chat question session_id
+    API->>Mem: get_history session_id
+    Mem-->>API: recent turns
+    API->>RW: rewrite_query question history
+    RW->>LLM: rewrite prompt
+    LLM-->>RW: standalone question
+    RW-->>API: rewritten query
+    API->>Chroma: similarity_search rewritten query
+    Chroma-->>API: top-k relevant chunks
+    API->>LLM: generate answer original question plus context plus history
+    LLM-->>API: grounded answer
+    API->>Mem: add_turn question answer
+    API-->>U: answer sources rewritten_query

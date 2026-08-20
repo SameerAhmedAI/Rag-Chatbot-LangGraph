@@ -6,9 +6,13 @@ Straight LangChain conversational RAG chain (no agent routing).
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.chains.qa_chain import answer_question
+from app.chains.qa_chain import QAChain
 
 router = APIRouter()
+
+# Shared instance for the process (matches the singleton-style lifecycle
+# used by VectorStoreRepository / Embedder — one chain, reused across requests).
+_qa_chain = QAChain()
 
 
 class ChatRequest(BaseModel):
@@ -28,7 +32,7 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
     try:
-        result = answer_question(request.question, request.session_id)
+        result = _qa_chain.answer(request.question, request.session_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate answer: {e}")
 

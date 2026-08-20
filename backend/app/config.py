@@ -10,7 +10,7 @@ from pathlib import Path
 class Settings(BaseSettings):
     # LLM
     groq_api_key: str
-    llm_model: str = "llama-3.3-70b-versatile"
+    llm_model: str = "openai/gpt-oss-120b"  # verify exact id from Groq's /models endpoint
 
     # Embeddings
     embedding_model: str = "all-MiniLM-L6-v2"

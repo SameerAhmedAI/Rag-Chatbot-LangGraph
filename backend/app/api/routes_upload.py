@@ -10,8 +10,8 @@ from pathlib import Path
 import shutil
 
 from app.config import settings
-from app.ingestion.loader_factory import load_document, UnsupportedFileTypeError
-from app.vectorstore.chroma_store import add_documents
+from app.ingestion.loader_factory import LoaderFactory, UnsupportedFileTypeError
+from app.vectorstore.chroma_store import VectorStoreRepository
 
 router = APIRouter()
 
@@ -27,7 +27,7 @@ async def upload_document(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, f)
 
     try:
-        documents = load_document(str(upload_path))
+        documents = LoaderFactory.load_document(str(upload_path))
     except UnsupportedFileTypeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -39,7 +39,7 @@ async def upload_document(file: UploadFile = File(...)):
             detail="No extractable text found in the uploaded file.",
         )
 
-    chunk_count = add_documents(documents)
+    chunk_count = VectorStoreRepository.add_documents(documents)
 
     return {
         "filename": file.filename,

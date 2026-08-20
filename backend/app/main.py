@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import routes_upload, routes_chat, routes_graph
-from app.vectorstore.chroma_store import get_document_count
+from app.vectorstore.chroma_store import VectorStoreRepository
 
 app = FastAPI(
     title="RAG Chatbot with LangGraph",
@@ -43,7 +43,7 @@ async def root():
 @app.get("/health")
 async def health():
     try:
-        count = get_document_count()
+        count = VectorStoreRepository.get_document_count()
     except Exception:
         count = 0
     return {"status": "healthy", "indexed_chunks": count}

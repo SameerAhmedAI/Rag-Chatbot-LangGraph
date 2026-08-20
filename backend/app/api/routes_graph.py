@@ -7,7 +7,7 @@ Routes the question through the LangGraph multi-node agent workflow
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.agents.graph import run_agent
+from app.agents.graph import agent_graph
 
 router = APIRouter()
 
@@ -30,7 +30,7 @@ async def agent_chat(request: AgentChatRequest):
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
     try:
-        result = run_agent(request.question, request.session_id)
+        result = agent_graph.run(request.question, request.session_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent workflow failed: {e}")
 

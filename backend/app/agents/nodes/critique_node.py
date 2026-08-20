@@ -14,9 +14,13 @@ from langchain_core.output_parsers import StrOutputParser
 
 from app.config import settings
 from app.agents.state import AgentState
+from app.agents.nodes.base_node import AgentNode
 
 
-CRITIQUE_PROMPT = """You are reviewing an AI-generated answer for accuracy.
+class CritiqueNode(AgentNode):
+    """Checks the draft answer against context and refines it if unsupported claims are found."""
+
+    CRITIQUE_PROMPT = """You are reviewing an AI-generated answer for accuracy.
 
 Context that was available:
 {context}
@@ -30,7 +34,7 @@ or "refine" if it includes unsupported claims or hedges awkwardly and \
 should be tightened.
 """
 
-REFINE_PROMPT = """Rewrite the following answer so that it strictly reflects \
+    REFINE_PROMPT = """Rewrite the following answer so that it strictly reflects \
 only what the context supports, is concise, and clearly states if information \
 is missing. Do not add new information.
 
@@ -42,34 +46,40 @@ Original answer: {draft_answer}
 Rewritten answer:
 """
 
+    def _get_llm(self) -> ChatGroq:
+        return ChatGroq(api_key=settings.groq_api_key, model=settings.llm_model, temperature=0)
 
-def critique_node(state: AgentState) -> AgentState:
-    # Only critique RAG answers — general chit-chat skips this check
-    if state.get("route") != "rag":
-        return {**state, "final_answer": state.get("draft_answer", ""), "needs_refinement": False}
+    def run(self, state: AgentState) -> AgentState:
+        # Only critique RAG answers — general chit-chat skips this check
+        if state.get("route") != "rag":
+            return {**state, "final_answer": state.get("draft_answer", ""), "needs_refinement": False}
 
-    llm = ChatGroq(api_key=settings.groq_api_key, model=settings.llm_model, temperature=0)
+        llm = self._get_llm()
 
-    critique_chain = ChatPromptTemplate.from_template(CRITIQUE_PROMPT) | llm | StrOutputParser()
-    verdict = critique_chain.invoke(
-        {
-            "context": state.get("context", ""),
-            "question": state["question"],
-            "draft_answer": state.get("draft_answer", ""),
-        }
-    ).strip().lower()
+        critique_chain = ChatPromptTemplate.from_template(self.CRITIQUE_PROMPT) | llm | StrOutputParser()
+        verdict = critique_chain.invoke(
+            {
+                "context": state.get("context", ""),
+                "question": state["question"],
+                "draft_answer": state.get("draft_answer", ""),
+            }
+        ).strip().lower()
 
-    needs_refinement = "refine" in verdict
+        needs_refinement = "refine" in verdict
 
-    if not needs_refinement:
-        return {**state, "final_answer": state.get("draft_answer", ""), "needs_refinement": False}
+        if not needs_refinement:
+            return {**state, "final_answer": state.get("draft_answer", ""), "needs_refinement": False}
 
-    refine_chain = ChatPromptTemplate.from_template(REFINE_PROMPT) | llm | StrOutputParser()
-    refined = refine_chain.invoke(
-        {
-            "context": state.get("context", ""),
-            "draft_answer": state.get("draft_answer", ""),
-        }
-    )
+        refine_chain = ChatPromptTemplate.from_template(self.REFINE_PROMPT) | llm | StrOutputParser()
+        refined = refine_chain.invoke(
+            {
+                "context": state.get("context", ""),
+                "draft_answer": state.get("draft_answer", ""),
+            }
+        )
 
-    return {**state, "final_answer": refined, "needs_refinement": True}
+        return {**state, "final_answer": refined, "needs_refinement": True}
+
+
+# Module-level instance so graph.py can wire this in directly.
+critique_node = CritiqueNode()

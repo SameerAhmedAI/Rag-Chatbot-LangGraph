@@ -21,10 +21,13 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 from app.config import settings
-from app.chains.memory import get_history
+from app.chains.memory import session_memory
 
 
-REWRITE_PROMPT = """Given the conversation history and a new question, rewrite \
+class QueryRewriter:
+    """Rewrites follow-up questions into standalone, retrieval-ready queries."""
+
+    REWRITE_PROMPT = """Given the conversation history and a new question, rewrite \
 the new question into a standalone question that can be understood WITHOUT \
 the history — resolve any pronouns or implicit references \
 (e.g., "it", "that", "the second one", "why did it happen") into their \
@@ -42,53 +45,66 @@ New question: {question}
 
 Standalone question:"""
 
+    # last 4 messages = last 2 turns, enough to resolve most follow-ups without
+    # needing a full transcript just to resolve a pronoun
+    RECENT_MESSAGE_WINDOW = 4
+    MAX_REWRITE_LENGTH = 500
 
-def _format_history_for_rewrite(session_id: str) -> str:
-    """
-    Formats raw history messages for the rewrite prompt. Kept separate from
-    chains/memory.py's format_history_for_prompt() since this only needs the
-    last couple of turns — a full transcript isn't necessary just to resolve
-    a pronoun, and keeping it short keeps the rewrite call fast.
-    """
-    history = get_history(session_id)
-    if not history:
-        return ""
+    def __init__(self):
+        self._chain = None  # built lazily, see _get_chain()
 
-    # last 4 messages = last 2 turns, enough to resolve most follow-ups
-    recent = history[-4:]
-    lines = []
-    for msg in recent:
-        role = "User" if msg.type == "human" else "Assistant"
-        lines.append(f"{role}: {msg.content}")
-    return "\n".join(lines)
+    def _get_chain(self):
+        if self._chain is None:
+            llm = ChatGroq(
+                api_key=settings.groq_api_key,
+                model=settings.llm_model,
+                temperature=0,
+            )
+            prompt = ChatPromptTemplate.from_template(self.REWRITE_PROMPT)
+            self._chain = prompt | llm | StrOutputParser()
+        return self._chain
+
+    def _format_history_for_rewrite(self, session_id: str) -> str:
+        history = session_memory.get_history(session_id)
+        if not history:
+            return ""
+
+        recent = history[-self.RECENT_MESSAGE_WINDOW:]
+        lines = []
+        for msg in recent:
+            role = "User" if msg.type == "human" else "Assistant"
+            lines.append(f"{role}: {msg.content}")
+        return "\n".join(lines)
+
+    def rewrite(self, question: str, session_id: str) -> str:
+        """
+        Rewrites a question into a standalone form using recent conversation
+        history. Returns the original question unchanged if there's no history
+        yet (first turn in a session) — this adds zero extra latency/cost on
+        the common single-turn case.
+        """
+        history_text = self._format_history_for_rewrite(session_id)
+
+        if not history_text:
+            return question
+
+        chain = self._get_chain()
+        rewritten = chain.invoke({"history": history_text, "question": question}).strip()
+
+        # Safety net: if the rewrite comes back empty or absurdly long (model
+        # misbehaving), fall back to the original question rather than
+        # breaking retrieval entirely.
+        if not rewritten or len(rewritten) > self.MAX_REWRITE_LENGTH:
+            return question
+
+        return rewritten
+
+
+# Module-level convenience wrapper so existing call sites
+# (`rewrite_query(question, session_id)`) don't all need to change
+# in the same commit.
+_default_rewriter = QueryRewriter()
 
 
 def rewrite_query(question: str, session_id: str) -> str:
-    """
-    Rewrites a question into a standalone form using recent conversation
-    history. Returns the original question unchanged if there's no history
-    yet (first turn in a session) — this adds zero extra latency/cost on
-    the common single-turn case.
-    """
-    history_text = _format_history_for_rewrite(session_id)
-
-    if not history_text:
-        return question
-
-    llm = ChatGroq(
-        api_key=settings.groq_api_key,
-        model=settings.llm_model,
-        temperature=0,
-    )
-    prompt = ChatPromptTemplate.from_template(REWRITE_PROMPT)
-    chain = prompt | llm | StrOutputParser()
-
-    rewritten = chain.invoke({"history": history_text, "question": question}).strip()
-
-    # Safety net: if the rewrite comes back empty or absurdly long (model
-    # misbehaving), fall back to the original question rather than breaking
-    # retrieval entirely.
-    if not rewritten or len(rewritten) > 500:
-        return question
-
-    return rewritten
+    return _default_rewriter.rewrite(question, session_id)

@@ -27,6 +27,10 @@ Graph shape:
 
 This satisfies the Advanced-level requirement: real agent workflow with
 conditional routing, not just a linear LangChain chain relabeled as a graph.
+
+Each node plugged in below (router_node, retrieve_node, generate_node,
+critique_node) is an AgentNode strategy instance from agents/nodes/ — see
+agents/nodes/base_node.py for the interface they share.
 """
 
 from langgraph.graph import StateGraph, END
@@ -36,65 +40,81 @@ from app.agents.nodes.router_node import router_node, route_decision
 from app.agents.nodes.retrieve_node import retrieve_node
 from app.agents.nodes.generate_node import generate_node
 from app.agents.nodes.critique_node import critique_node
+from app.chains.memory import session_memory
 
 
-def build_graph():
-    graph = StateGraph(AgentState)
+class AgentGraph:
+    """
+    Builds and runs the compiled LangGraph workflow. Compiled once per
+    instance and reused across requests via the module-level
+    `agent_graph` object below.
+    """
 
-    graph.add_node("router", router_node)
-    graph.add_node("retrieve", retrieve_node)
-    graph.add_node("generate", generate_node)
-    graph.add_node("critique", critique_node)
+    def __init__(self):
+        self._compiled = self._build()
 
-    graph.set_entry_point("router")
+    @staticmethod
+    def _build():
+        graph = StateGraph(AgentState)
 
-    # Conditional edge: router decides which path to take
-    graph.add_conditional_edges(
-        "router",
-        route_decision,
-        {
-            "rag": "retrieve",
-            "general": "generate",
-        },
-    )
+        graph.add_node("router", router_node)
+        graph.add_node("retrieve", retrieve_node)
+        graph.add_node("generate", generate_node)
+        graph.add_node("critique", critique_node)
 
-    graph.add_edge("retrieve", "generate")
-    graph.add_edge("generate", "critique")
-    graph.add_edge("critique", END)
+        graph.set_entry_point("router")
 
-    return graph.compile()
+        # Conditional edge: router decides which path to take
+        graph.add_conditional_edges(
+            "router",
+            route_decision,
+            {
+                "rag": "retrieve",
+                "general": "generate",
+            },
+        )
+
+        graph.add_edge("retrieve", "generate")
+        graph.add_edge("generate", "critique")
+        graph.add_edge("critique", END)
+
+        return graph.compile()
+
+    def run(self, question: str, session_id: str = "default") -> dict:
+        """
+        Entry point used by the API layer to run a question through the
+        full LangGraph agent workflow.
+        """
+        initial_state: AgentState = {
+            "question": question,
+            "session_id": session_id,
+            "route": None,
+            "context": None,
+            "sources": None,
+            "draft_answer": None,
+            "final_answer": None,
+            "needs_refinement": None,
+        }
+
+        result = self._compiled.invoke(initial_state)
+
+        final_answer = result.get("final_answer") or result.get("draft_answer", "")
+        session_memory.add_turn(session_id, question, final_answer)
+
+        return {
+            "answer": final_answer,
+            "route": result.get("route"),
+            "sources": result.get("sources") or [],
+            "was_refined": result.get("needs_refinement", False),
+        }
 
 
-# Compiled once at import time, reused across requests
-compiled_graph = build_graph()
+# Compiled once at import time, reused across requests.
+agent_graph = AgentGraph()
 
 
+# Module-level convenience wrapper so existing call sites
+# (`run_agent(question, session_id)`) don't all need to change
+# in the same commit.
 def run_agent(question: str, session_id: str = "default") -> dict:
-    """
-    Entry point used by the API layer to run a question through the full
-    LangGraph agent workflow.
-    """
-    from app.chains.memory import add_turn  # local import avoids circular import
-
-    initial_state: AgentState = {
-        "question": question,
-        "session_id": session_id,
-        "route": None,
-        "context": None,
-        "sources": None,
-        "draft_answer": None,
-        "final_answer": None,
-        "needs_refinement": None,
-    }
-
-    result = compiled_graph.invoke(initial_state)
-
-    final_answer = result.get("final_answer") or result.get("draft_answer", "")
-    add_turn(session_id, question, final_answer)
-
-    return {
-        "answer": final_answer,
-        "route": result.get("route"),
-        "sources": result.get("sources") or [],
-        "was_refined": result.get("needs_refinement", False),
-    }
+    return agent_graph.run(question, session_id)

@@ -10,21 +10,33 @@ before retrieval runs. See chains/query_rewriter.py for details.
 """
 
 from app.agents.state import AgentState
-from app.retrieval.retriever import retrieve_context
-from app.chains.query_rewriter import rewrite_query
+from app.agents.nodes.base_node import AgentNode
+from app.retrieval.retriever import Retriever
+from app.chains.query_rewriter import QueryRewriter
 
 
-def retrieve_node(state: AgentState) -> AgentState:
-    search_query = rewrite_query(state["question"], state["session_id"])
-    context, documents = retrieve_context(search_query)
+class RetrieveNode(AgentNode):
+    """Retrieves context for the RAG path using a history-resolved query."""
 
-    sources = [
-        {
-            "source": doc.metadata.get("source", "unknown"),
-            "page": doc.metadata.get("page"),
-            "sheet": doc.metadata.get("sheet"),
-        }
-        for doc in documents
-    ]
+    def __init__(self, retriever: Retriever | None = None, rewriter: QueryRewriter | None = None):
+        self._retriever = retriever or Retriever()
+        self._rewriter = rewriter or QueryRewriter()
 
-    return {**state, "context": context, "sources": sources}
+    def run(self, state: AgentState) -> AgentState:
+        search_query = self._rewriter.rewrite(state["question"], state["session_id"])
+        context, documents = self._retriever.retrieve(search_query)
+
+        sources = [
+            {
+                "source": doc.metadata.get("source", "unknown"),
+                "page": doc.metadata.get("page"),
+                "sheet": doc.metadata.get("sheet"),
+            }
+            for doc in documents
+        ]
+
+        return {**state, "context": context, "sources": sources}
+
+
+# Module-level instance so graph.py can wire this in directly.
+retrieve_node = RetrieveNode()

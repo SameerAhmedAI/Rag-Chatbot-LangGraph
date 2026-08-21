@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
 
     # Retrieval
-    top_k_results: int = 4
+    top_k_results: int = 8
 
     # Uploads
     upload_dir: str = "../data/uploads"

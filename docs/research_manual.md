@@ -1,4 +1,4 @@
-# Research Manual - Transfer Learning, Fine-Tuning, and RAG Architectures
+# Research Manual - Transfer Learning, Fine-Tuning, RAG Architectures, and NLP Fundamentals
 
 Prepared by: Sameer Ahmed - AI Engineering Intern
 Task: Intern Task 3 and 4 - Research Manual (Intermediate/Advanced Level)
@@ -18,6 +18,12 @@ Repository: https://github.com/SameerAhmedAI/Rag-Chatbot-LangGraph
 8. GPU Memory Utilization and Optimization
 9. Fine-Tuning vs RAG with Vector Databases
 10. Naive RAG vs Graph RAG
+11. Natural Language Processing (NLP) Concepts and Fundamentals
+12. NLP Pipeline (Text Cleaning, Tokenization, Lemmatization, Stemming, Stop Words, Vectorization, Embeddings)
+13. Word Embeddings (Word2Vec, GloVe, FastText)
+14. Transformer Architecture
+15. Attention Mechanism and Self-Attention
+16. Large Language Models (LLMs)
 
 ---
 
@@ -552,16 +558,389 @@ a Future Improvement for exactly this reason.
 
 ---
 
+## 11. Natural Language Processing (NLP) Concepts and Fundamentals
+
+### Concept
+
+NLP is the field concerned with enabling computers to process, understand,
+and generate human language. Unlike structured data (numbers, categories),
+text is unstructured, ambiguous, and context-dependent - the same word can
+mean different things depending on surrounding words, and meaning often
+depends on world knowledge the model was never explicitly given. NLP sits
+at the intersection of linguistics, statistics, and machine learning, and
+underlies every component of a RAG system: understanding the user's
+question, splitting documents into meaningful chunks, and representing text
+numerically so it can be compared for similarity.
+
+### How it works
+
+Raw text (unstructured, ambiguous)
+then Preprocessing (cleaning, tokenization - see Section 12)
+then Numerical representation (vectorization/embeddings - see Section 12/13)
+then Model processing (classification, generation, retrieval, etc.)
+then Structured output (answer, label, ranked results)
+
+### Practical example
+
+This entire project is an applied NLP system end to end: user questions are
+tokenized and embedded (all-MiniLM-L6-v2), compared against embedded document
+chunks via cosine similarity in ChromaDB, and the retrieved text is passed to
+a transformer-based LLM (GPT-OSS-120B via Groq) for answer generation. Every
+stage - ingestion, chunking, embedding, retrieval, generation - is a distinct
+NLP sub-task chained together.
+
+### Advantages
+
+- A mature field with well-established techniques and pretrained models
+  available for nearly every sub-task (tokenization, embeddings, generation).
+- Modern transformer-based approaches generalize well across domains without
+  needing hand-crafted linguistic rules.
+
+### Limitations
+
+- Language is genuinely ambiguous (sarcasm, idioms, context-dependent
+  meaning) - no NLP system achieves perfect understanding.
+- Performance is strongly tied to the quality and domain-match of training
+  data; a model trained on general web text can underperform on specialized
+  technical or legal language without adaptation.
+
+### References
+
+- Jurafsky, Daniel and Martin, James H. "Speech and Language Processing."
+  (3rd edition draft) - web.stanford.edu/~jurafsky/slp3
+- spaCy documentation - spacy.io/usage/linguistic-features
+
+---
+
+## 12. NLP Pipeline (Text Cleaning, Tokenization, Lemmatization, Stemming, Stop Words, Vectorization, Embeddings)
+
+### Concept
+
+A typical NLP pipeline is a sequence of preprocessing steps that convert raw
+text into a numerical form a model can consume. Not every application uses
+every step - modern transformer-based systems (including this project) skip
+several classical steps entirely, since subword tokenization and learned
+embeddings handle much of what stemming/lemmatization/stop-word removal used
+to do by hand.
+
+### Pipeline stages
+
+- Text cleaning: removing noise - HTML tags, extra whitespace, special
+  characters - so the model sees clean, consistent text.
+- Tokenization: splitting text into units (words, subwords, or
+  characters) the model can process. Modern LLMs use subword tokenization
+  (e.g. Byte-Pair Encoding), which handles rare/unseen words by breaking
+  them into known sub-pieces rather than failing outright.
+- Stop word removal: discarding very common, low-information words
+  ("the", "is", "a"). Common in classical NLP (search engines, bag-of-words
+  models); generally skipped in transformer pipelines, since the model can
+  learn to weight these words appropriately itself.
+- Stemming: crudely truncating words to a root form (e.g. "running" to
+  "run") using fixed rules - fast but can produce non-words (e.g. "studies"
+  to "studi").
+- Lemmatization: reducing words to their true dictionary root ("better" to
+  "good") using vocabulary and grammar rules - slower than stemming but
+  linguistically accurate.
+- Vectorization: converting text into numbers - classically via
+  bag-of-words or TF-IDF (frequency-based, no notion of meaning).
+- Embeddings: converting text into dense numerical vectors that capture
+  semantic meaning, such that similar meanings produce similar vectors -
+  the modern replacement for simple vectorization. See Section 13.
+
+### Practical example from our own project
+
+The ingestion pipeline in this project (LoaderFactory to
+RecursiveCharacterTextSplitter) performs cleaning (via each format-specific
+loader) and chunking, but deliberately skips stemming, lemmatization, and
+stop-word removal - these are unnecessary and can even hurt retrieval
+quality with modern sentence-transformer embeddings, since the embedding
+model was trained on natural, unstemmed text and expects the same at
+inference time. Tokenization happens implicitly inside both the embedding
+model (all-MiniLM-L6-v2) and the LLM (GPT-OSS-120B), not as a manual
+pipeline step in this codebase.
+
+### Advantages
+
+- A well-defined pipeline makes text preprocessing systematic and
+  reproducible across a large corpus.
+- Classical steps (stemming, stop-word removal) are cheap and still useful
+  for lightweight, non-neural applications (e.g. keyword search).
+
+### Limitations
+
+- Stemming can produce incorrect roots and merge unrelated words
+  (over-stemming), hurting downstream accuracy.
+- Applying classical preprocessing (stop-word removal, stemming) before
+  a transformer-based embedding model can remove information the model
+  relies on, since these models were trained on natural text - a common
+  mistake when combining old and new NLP techniques.
+
+### References
+
+- Manning, Christopher D., et al. "Introduction to Information Retrieval."
+  Cambridge University Press (2008) - nlp.stanford.edu/IR-book
+- Hugging Face Tokenizers documentation - huggingface.co/docs/tokenizers
+
+---
+
+## 13. Word Embeddings (Word2Vec, GloVe, FastText)
+
+### Concept
+
+Word embeddings represent words as dense numerical vectors (typically
+100-300 dimensions) such that words with similar meanings are positioned
+close together in vector space. This replaced older sparse representations
+(one-hot encoding, bag-of-words), which treated every word as equally
+unrelated to every other word and produced enormous, mostly-empty vectors.
+
+### The three classical approaches
+
+- Word2Vec (Mikolov et al., 2013): learns embeddings by predicting a
+  word from its surrounding context (CBOW) or predicting context from a
+  word (Skip-gram). Famous for capturing analogies algebraically
+  (king - man + woman is approximately equal to queen).
+- GloVe (Global Vectors, Pennington et al., 2014): learns embeddings
+  from global word co-occurrence statistics across the entire corpus,
+  rather than local context windows - combines the strengths of matrix
+  factorization and local context methods.
+- FastText (Bojanowski et al., 2017, Facebook AI): extends Word2Vec by
+  representing each word as a bag of character n-grams, so it can generate
+  reasonable embeddings for misspelled or out-of-vocabulary words by
+  composing them from known sub-word pieces.
+
+### How this relates to modern embeddings
+
+Word2Vec/GloVe/FastText produce one fixed vector per word regardless of
+context ("bank" gets the same vector in "river bank" and "bank account").
+Modern transformer-based embeddings (used in this project - see Section 11)
+produce contextual embeddings, where the same word gets different vectors
+depending on surrounding text. This is the key advance that made classical
+word embeddings largely obsolete for high-accuracy retrieval tasks.
+
+### Advantages
+
+- Dramatically more compact and semantically meaningful than one-hot or
+  bag-of-words representations.
+- Fast to train and use; still useful for lightweight applications where
+  full transformer models are too costly.
+- FastText's subword approach handles rare and misspelled words gracefully.
+
+### Limitations
+
+- Static, context-independent: cannot distinguish different meanings of
+  the same word based on context, a real limitation for ambiguous language.
+- Largely superseded by contextual embeddings (BERT-style, sentence
+  transformers) for tasks like semantic search and RAG retrieval, where
+  this project uses all-MiniLM-L6-v2 rather than Word2Vec/GloVe/FastText.
+
+### References
+
+- Mikolov, Tomas, et al. "Efficient Estimation of Word Representations in
+  Vector Space." (2013)
+- Pennington, Jeffrey, et al. "GloVe: Global Vectors for Word
+  Representation." (2014) - nlp.stanford.edu/projects/glove
+- Bojanowski, Piotr, et al. "Enriching Word Vectors with Subword
+  Information." (2017)
+
+---
+
+## 14. Transformer Architecture
+
+### Concept
+
+The Transformer (Vaswani et al., 2017, "Attention Is All You Need")
+replaced recurrent architectures (RNN, LSTM - see the DL-RAG-Toolkit
+technical report referenced elsewhere in this repository) as the dominant
+architecture for sequence modeling. Its key insight: instead of processing
+a sequence one token at a time (as RNNs/LSTMs do, which is slow and
+struggles with long-range dependencies), a Transformer processes an entire
+sequence in parallel, using attention (see Section 15) to let every token
+directly relate to every other token regardless of distance.
+
+### Architecture (encoder-decoder)
+
+Input Embeddings + Positional Encoding
+then Encoder stack (Multi-Head Self-Attention, then Feed-Forward Network,
+repeated N times, each with residual connections and layer normalization)
+then Decoder stack (Masked Self-Attention, then Encoder-Decoder Attention,
+then Feed-Forward Network, repeated N times)
+then Output projection (linear layer plus softmax over vocabulary)
+
+Modern LLMs (including the GPT-OSS-120B model used in this project) are
+decoder-only Transformers - they drop the encoder and use only the masked
+self-attention decoder stack, since generation (predicting the next token)
+does not require a separate encoding pass the way translation originally did.
+
+### Why this matters for RAG systems
+
+Both halves of a RAG pipeline lean on Transformers: the embedding model
+(all-MiniLM-L6-v2, an encoder-only Transformer) converts text into vectors
+for retrieval, and the generation model (GPT-OSS-120B, a decoder-only
+Transformer) produces the final answer from retrieved context.
+
+### Advantages
+
+- Fully parallelizable during training (unlike RNNs, which must process
+  tokens sequentially), enabling much larger models trained on much more data.
+- Handles long-range dependencies far better than RNN/LSTM architectures,
+  since attention connects any two tokens directly regardless of distance.
+
+### Limitations
+
+- Self-attention has quadratic computational cost in sequence length
+  (doubling context length roughly quadruples attention compute), which is
+  why context window size is a meaningful cost and latency constraint.
+- Requires large amounts of training data and compute to reach strong
+  performance from scratch, though this project only performs inference
+  against a pretrained model rather than training a Transformer directly.
+
+### References
+
+- Vaswani, Ashish, et al. "Attention Is All You Need." (2017)
+- Jay Alammar, "The Illustrated Transformer" - jalammar.github.io/illustrated-transformer
+
+---
+
+## 15. Attention Mechanism and Self-Attention
+
+### Concept
+
+Attention lets a model dynamically weigh how much each part of the input
+matters when producing a given output, rather than treating all input
+positions equally. Self-attention is attention applied within a single
+sequence: for each token, the mechanism computes how strongly it should
+attend to every other token in the same sequence, including itself.
+
+### How it works (simplified)
+
+Each token's embedding is projected into three vectors: Query (Q), Key (K),
+and Value (V).
+
+For each token: compute similarity (dot product) between its Query and
+every token's Key
+then Scale and apply softmax to get attention weights (summing to 1)
+then Compute a weighted sum of all Value vectors using those weights
+then Result: a new representation of the token, informed by relevant
+context from the rest of the sequence
+
+Multi-head attention repeats this process several times in parallel with
+different learned projections, letting the model capture different types
+of relationships simultaneously (e.g. one head might track syntactic
+structure while another tracks coreference).
+
+### Practical relevance
+
+Self-attention is why a Transformer-based embedding model can produce a
+genuinely different vector for the word "bank" depending on whether nearby
+tokens relate to rivers or finance - each token's representation is built
+by attending to its actual context, not looked up from a fixed table
+(contrast this with Word2Vec/GloVe in Section 13). This same mechanism, in
+the LLM used for generation, is what lets the model correctly connect a
+pronoun like "that" in a follow-up question to the specific entity it
+refers to earlier in a long context window.
+
+### Advantages
+
+- Directly models relationships between any two positions in a sequence,
+  regardless of distance, addressing the core weakness of RNN/LSTM
+  architectures.
+- Interpretable to a degree - attention weights can be visualized to see
+  which tokens a model focused on for a given prediction.
+
+### Limitations
+
+- Computationally expensive at scale (quadratic in sequence length, as
+  noted in Section 14).
+- High attention weight does not always equal causal importance -
+  attention visualizations can be suggestive but are not a rigorous
+  explanation of model behavior.
+
+### References
+
+- Vaswani, Ashish, et al. "Attention Is All You Need." (2017)
+- Bahdanau, Dzmitry, et al. "Neural Machine Translation by Jointly Learning
+  to Align and Translate." (2014) - the earlier attention mechanism that
+  inspired the Transformer's self-attention
+
+---
+
+## 16. Large Language Models (LLMs)
+
+### Concept
+
+LLMs are large, decoder-only Transformer models (see Section 14) trained on
+massive text corpora to predict the next token in a sequence. At sufficient
+scale, this simple training objective produces models capable of a wide
+range of downstream tasks - question answering, summarization, reasoning,
+code generation - without task-specific training, through prompting alone.
+
+### How this project uses an LLM
+
+This project uses GPT-OSS-120B (via the Groq API) for two distinct roles:
+
+- Generation: producing the final grounded answer from retrieved document
+  context (the core RAG task).
+- Auxiliary reasoning steps: the query rewriter (resolving follow-up
+  pronouns using history) and the LangGraph router and critique nodes
+  (classifying questions and self-checking answers) all call the same LLM
+  with different, narrowly-scoped prompts - demonstrating that a single LLM
+  can serve multiple distinct roles within one application through prompt
+  engineering alone, without separate fine-tuned models for each task.
+
+Note: this project originally used Groq's llama-3.3-70b-versatile,
+which Groq decommissioned on August 16, 2026. The project was migrated to
+openai/gpt-oss-120b, Groq's recommended replacement - see the main
+README's Challenges and Solutions section for the full account of this
+migration.
+
+### Advantages
+
+- A single pretrained LLM can perform many tasks via prompting, avoiding
+  the cost of training or fine-tuning separate models per task.
+- Strong few-shot and zero-shot performance on tasks the model was never
+  explicitly trained for.
+
+### Limitations
+
+- Hallucination: LLMs can generate fluent, confident-sounding text that is
+  factually incorrect or entirely fabricated, especially when given
+  insufficient or no grounding context - a failure mode directly
+  encountered and fixed during this project's own testing (see the main
+  README, Challenge 5).
+- No inherent access to information outside training data or the provided
+  context window - this is precisely the gap RAG is designed to close (see
+  Section 9, Fine-Tuning vs RAG with Vector Databases).
+- Inference cost and latency scale with model size and context length,
+  directly motivating the quantization and GPU optimization techniques
+  covered in Sections 6-8 of this manual.
+
+### References
+
+- Brown, Tom, et al. "Language Models are Few-Shot Learners" (GPT-3 paper).
+  (2020)
+- Groq documentation - console.groq.com/docs
+- OpenAI, "gpt-oss Model Card" - openai.com/index/gpt-oss
+
+---
+
 ## Summary
 
 This manual covers the foundational techniques for adapting and deploying
 large models (transfer learning, fine-tuning, LoRA, QLoRA, quantization)
 alongside the hardware considerations that make these techniques
-practical (GPU requirements and memory optimization), and closes with a
+practical (GPU requirements and memory optimization), and includes a
 direct comparison of the two dominant strategies for grounding an LLM in
 external knowledge - fine-tuning versus RAG - and the two dominant RAG
-architectures - Naive RAG versus Graph RAG. The RAG Chatbot with
-LangGraph project (this repository) is a direct, working application of
-the Naive RAG approach described in Section 10, with its specific
-limitations documented honestly based on real testing rather than
-assumed theoretically.
+architectures - Naive RAG versus Graph RAG. It closes with the NLP
+foundations underlying all of the above: the classical and modern NLP
+pipeline, word embeddings, the Transformer architecture, the attention
+mechanism that makes Transformers work, and large language models
+themselves - tying each concept back to a concrete role it plays in this
+project (embedding-based retrieval, LLM-based generation, and the
+multi-role prompting used by the query rewriter, router, and critique
+nodes). The RAG Chatbot with LangGraph project (this repository) is a
+direct, working application of nearly every concept in this manual - the
+Naive RAG approach described in Section 10, the Transformer-based
+embedding and generation models described in Sections 14-16, and the
+real limitations of both, documented honestly based on actual testing
+rather than assumed theoretically.

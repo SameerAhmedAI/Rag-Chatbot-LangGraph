@@ -1,0 +1,15 @@
+graph TD
+    subgraph FineTuning [Fine-Tuning Pipeline]
+        A1[Prepare labeled dataset] --> A2[Update model weights via training]
+        A2 --> A3[Knowledge baked into model parameters]
+        A3 --> A4[Static - requires retraining to update knowledge]
+    end
+
+    subgraph RAG [RAG with Vector Database Pipeline]
+        B1[Index documents as embeddings in vector DB] --> B2[Retrieve relevant chunks per query at inference time]
+        B2 --> B3[Inject retrieved context into prompt]
+        B3 --> B4[Dynamic - update knowledge by re-indexing documents, no retraining]
+    end
+
+    style A4 fill:#e8734a,color:#fff
+    style B4 fill:#5cb85c,color:#fff

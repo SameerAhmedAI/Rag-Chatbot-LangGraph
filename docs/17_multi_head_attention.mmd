@@ -1,0 +1,12 @@
+graph TD
+    A[Input token embeddings] --> B[Head 1 - Q K V projections plus attention]
+    A --> C[Head 2 - Q K V projections plus attention]
+    A --> D[Head 3 - Q K V projections plus attention]
+    A --> E[Head N - Q K V projections plus attention]
+    B --> F[Concatenate all head outputs]
+    C --> F
+    D --> F
+    E --> F
+    F --> G[Final linear projection]
+    G --> H[Multi-head attention output - captures multiple relationship types simultaneously]
+    style H fill:#5cb85c,color:#fff

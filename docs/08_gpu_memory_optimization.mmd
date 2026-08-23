@@ -1,0 +1,13 @@
+graph TD
+    A[Available GPU Memory Optimization Techniques] --> B[Quantization - reduce weight precision]
+    A --> C[LoRA/QLoRA - reduce trainable parameter count]
+    A --> D[Gradient checkpointing - trade compute for memory by recomputing activations]
+    A --> E[Mixed precision training - FP16/BF16 compute with FP32 master weights]
+    A --> F[Gradient accumulation - simulate larger batch size without more memory]
+    B --> G[Combined effect: large models trainable on modest hardware]
+    C --> G
+    D --> G
+    E --> G
+    F --> G
+    style A fill:#4a90d9,color:#fff
+    style G fill:#5cb85c,color:#fff

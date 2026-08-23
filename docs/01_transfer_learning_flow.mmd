@@ -1,0 +1,7 @@
+graph TD
+    A[Pretrained Model - trained on large general dataset e.g. ImageNet] --> B[Freeze early layers - edges textures low-level patterns]
+    B --> C[Replace or unfreeze final layers - task-specific features]
+    C --> D[Fine-tune on smaller task-specific dataset]
+    D --> E[Adapted model - less data and compute than training from scratch]
+    style A fill:#4a90d9,color:#fff
+    style E fill:#5cb85c,color:#fff

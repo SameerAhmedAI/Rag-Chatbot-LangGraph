@@ -1,0 +1,32 @@
+stateDiagram-v2
+    [*] --> ReceiveQuestion
+    ReceiveQuestion --> RouterLLMCall: classify rag vs general using history
+    RouterLLMCall --> QueryRewriterLLMCall: route is rag
+    RouterLLMCall --> GeneralGenerationLLMCall: route is general
+    QueryRewriterLLMCall --> RetrievalStep: standalone query produced
+    RetrievalStep --> GroundedGenerationLLMCall: context retrieved
+    GroundedGenerationLLMCall --> CritiqueLLMCall: draft answer produced
+    CritiqueLLMCall --> RefinementLLMCall: unsupported claims detected
+    CritiqueLLMCall --> [*]: answer well-grounded
+    RefinementLLMCall --> [*]: final answer rewritten
+    GeneralGenerationLLMCall --> [*]: conversational reply returned
+
+    note right of RouterLLMCall
+        One LLM, one role:
+        classification
+    end note
+
+    note right of QueryRewriterLLMCall
+        Same LLM, different role:
+        standalone query rewriting
+    end note
+
+    note right of GroundedGenerationLLMCall
+        Same LLM, different role:
+        grounded answer generation
+    end note
+
+    note right of CritiqueLLMCall
+        Same LLM, different role:
+        self-verification
+    end note

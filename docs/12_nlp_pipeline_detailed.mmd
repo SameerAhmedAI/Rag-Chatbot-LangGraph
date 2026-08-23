@@ -1,0 +1,16 @@
+graph TD
+    A[Raw Text] --> B[Text Cleaning - remove HTML noise special characters]
+    B --> C[Tokenization - split into words subwords or characters]
+    C --> D{Classical or Modern Pipeline?}
+    D -->|Classical| E[Stop Word Removal]
+    E --> F[Stemming or Lemmatization]
+    F --> G[Vectorization - Bag of Words or TF-IDF]
+    D -->|Modern - used in this project| H[Skip stop-word removal and stemming]
+    H --> I[Embeddings - dense semantic vectors, e.g. sentence-transformers]
+    G --> J[Sparse numerical representation]
+    I --> K[Dense numerical representation]
+    J --> L[Downstream model - classical ML]
+    K --> M[Downstream model - neural retrieval or generation]
+    style H fill:#4a90d9,color:#fff
+    style I fill:#4a90d9,color:#fff
+    style M fill:#5cb85c,color:#fff

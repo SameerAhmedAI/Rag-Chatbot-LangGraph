@@ -1,0 +1,18 @@
+graph TD
+    subgraph Frozen Pretrained Weight Matrix
+        W["W - original weight matrix - frozen, not updated"]
+    end
+    subgraph Low-Rank Adapter - trainable
+        A["A - low-rank matrix - r x d, small r"]
+        B["B - low-rank matrix - d x r"]
+    end
+    X[Input activation] --> W
+    X --> A
+    A --> B
+    W --> Sum[Sum]
+    B --> Sum
+    Sum --> Y[Output activation - W x plus B A x]
+    style W fill:#8a8a8a,color:#fff
+    style A fill:#4a90d9,color:#fff
+    style B fill:#4a90d9,color:#fff
+    style Y fill:#5cb85c,color:#fff

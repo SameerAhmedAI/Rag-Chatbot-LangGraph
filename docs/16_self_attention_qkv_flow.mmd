@@ -1,0 +1,13 @@
+graph TD
+    A[Input token embedding] --> B[Project to Query vector Q]
+    A --> C[Project to Key vector K]
+    A --> D[Project to Value vector V]
+    B --> E[Compute Query dot Key for every token pair]
+    C --> E
+    E --> F[Scale by square root of dimension]
+    F --> G[Softmax - convert to attention weights summing to 1]
+    G --> H[Weighted sum of Value vectors using attention weights]
+    D --> H
+    H --> I[New context-aware token representation]
+    style A fill:#4a90d9,color:#fff
+    style I fill:#5cb85c,color:#fff

@@ -1,0 +1,31 @@
+graph TD
+    A[Input Tokens] --> B[Input Embeddings plus Positional Encoding]
+    B --> C[Encoder Stack - N layers]
+
+    subgraph EncoderLayer [Each Encoder Layer]
+        C1[Multi-Head Self-Attention] --> C2[Add and Norm]
+        C2 --> C3[Feed-Forward Network]
+        C3 --> C4[Add and Norm]
+    end
+
+    C --> C1
+    C4 --> D[Encoder Output - contextualized representations]
+
+    E[Output Tokens - shifted right] --> F[Output Embeddings plus Positional Encoding]
+    F --> G[Decoder Stack - N layers]
+
+    subgraph DecoderLayer [Each Decoder Layer]
+        G1[Masked Multi-Head Self-Attention] --> G2[Add and Norm]
+        G2 --> G3[Encoder-Decoder Attention]
+        G3 --> G4[Add and Norm]
+        G4 --> G5[Feed-Forward Network]
+        G5 --> G6[Add and Norm]
+    end
+
+    G --> G1
+    D --> G3
+    G6 --> H[Linear Layer plus Softmax]
+    H --> I[Output Probabilities over Vocabulary]
+
+    style D fill:#4a90d9,color:#fff
+    style I fill:#5cb85c,color:#fff

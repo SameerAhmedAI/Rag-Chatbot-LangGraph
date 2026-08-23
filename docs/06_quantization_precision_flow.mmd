@@ -1,0 +1,7 @@
+graph LR
+    A[FP32 - full precision - 4 bytes per parameter] --> B[FP16 or BF16 - half precision - 2 bytes per parameter]
+    B --> C[INT8 - 8-bit integer - 1 byte per parameter]
+    C --> D[INT4 or NF4 - 4-bit - 0.5 bytes per parameter]
+    A -.model size and memory decrease, some accuracy risk increases.-> D
+    style A fill:#e8734a,color:#fff
+    style D fill:#5cb85c,color:#fff

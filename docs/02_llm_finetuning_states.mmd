@@ -1,0 +1,19 @@
+stateDiagram-v2
+    [*] --> PretrainedLLM
+    PretrainedLLM --> DataPrep: prepare labeled task-specific dataset
+    DataPrep --> FullFineTuning: update all model weights
+    DataPrep --> ParameterEfficientFineTuning: update a small subset via LoRA or QLoRA
+    FullFineTuning --> EvaluatedModel
+    ParameterEfficientFineTuning --> EvaluatedModel
+    EvaluatedModel --> [*]: deployed for inference
+
+    note right of FullFineTuning
+        High compute and memory cost.
+        Every parameter is updated.
+    end note
+
+    note right of ParameterEfficientFineTuning
+        Low compute and memory cost.
+        Only adapter parameters are updated,
+        base model stays frozen.
+    end note

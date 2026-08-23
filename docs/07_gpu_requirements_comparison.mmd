@@ -1,0 +1,11 @@
+graph TD
+    A[Task] --> B{Training or Inference?}
+    B -->|Full Fine-Tuning Training| C[Highest memory: weights plus gradients plus optimizer states plus activations]
+    B -->|LoRA/QLoRA Training| D[Moderate memory: frozen base plus small trainable adapters plus activations]
+    B -->|Inference only| E[Lowest memory: weights plus activations only, no gradients or optimizer states]
+    C --> F[Requires high-end multi-GPU setups for large models]
+    D --> G[Fits on a single consumer or prosumer GPU for many model sizes]
+    E --> H[Can run quantized models on modest hardware, e.g. this project's T1200 4GB GPU for local embedding]
+    style C fill:#e8734a,color:#fff
+    style D fill:#f4c542,color:#000
+    style E fill:#5cb85c,color:#fff

@@ -1,0 +1,11 @@
+graph TD
+    A[Pretrained model weights - full precision] --> B[Quantize base model to 4-bit - NF4 format]
+    B --> C[Frozen 4-bit quantized base model]
+    C --> D[Attach trainable LoRA adapters - kept in higher precision e.g. BF16]
+    D --> E[Forward and backward pass - de-quantize on the fly for computation]
+    E --> F[Only LoRA adapter gradients computed and stored]
+    F --> G[Fine-tuned model - base stays 4-bit, adapters merged or kept separate]
+    style A fill:#4a90d9,color:#fff
+    style C fill:#8a8a8a,color:#fff
+    style D fill:#4a90d9,color:#fff
+    style G fill:#5cb85c,color:#fff

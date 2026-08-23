@@ -1,0 +1,12 @@
+graph TD
+    A[Word Embedding Approaches] --> B[Word2Vec - predicts word from context CBOW or context from word Skip-gram]
+    A --> C[GloVe - learns from global co-occurrence statistics across corpus]
+    A --> D[FastText - represents words as character n-grams, handles rare or misspelled words]
+    B --> E[Static - one fixed vector per word regardless of context]
+    C --> E
+    D --> E
+    E --> F[Contextual Embeddings - Transformer-based - different vector per word depending on context]
+    F --> G[Used in this project - all-MiniLM-L6-v2 sentence-transformer]
+    style E fill:#e8734a,color:#fff
+    style F fill:#4a90d9,color:#fff
+    style G fill:#5cb85c,color:#fff

@@ -1,0 +1,17 @@
+graph TD
+    A[Input Token Sequence] --> B[Token Embeddings plus Positional Encoding]
+    B --> C[Decoder-Only Stack - N layers, e.g. GPT-OSS-120B]
+
+    subgraph DecoderOnlyLayer [Each Layer]
+        C1[Masked Multi-Head Self-Attention - each token attends only to previous tokens] --> C2[Add and Norm]
+        C2 --> C3[Feed-Forward Network]
+        C3 --> C4[Add and Norm]
+    end
+
+    C --> C1
+    C4 --> D[Linear Layer plus Softmax]
+    D --> E[Predicted Next Token]
+    E -.fed back as input for next generation step.-> A
+
+    style C fill:#4a90d9,color:#fff
+    style E fill:#5cb85c,color:#fff

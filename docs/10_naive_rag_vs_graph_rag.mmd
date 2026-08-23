@@ -1,0 +1,23 @@
+graph TD
+    subgraph NaiveRAG [Naive RAG - used in this project]
+        N1[Documents] --> N2[Chunk plus Embed]
+        N2 --> N3[Vector Store - ChromaDB]
+        N4[Query] --> N5[Embed query]
+        N5 --> N6[Similarity search top-k chunks]
+        N3 --> N6
+        N6 --> N7[Flat context - concatenated chunks]
+        N7 --> N8[LLM generates answer]
+    end
+
+    subgraph GraphRAG [Graph RAG]
+        G1[Documents] --> G2[Entity plus Relationship Extraction]
+        G2 --> G3[Knowledge Graph - nodes plus edges]
+        G4[Query] --> G5[Identify relevant entities]
+        G5 --> G6[Graph traversal - multi-hop relationship following]
+        G3 --> G6
+        G6 --> G7[Structured context - entities plus relationships plus source chunks]
+        G7 --> G8[LLM generates answer]
+    end
+
+    style N8 fill:#f4c542,color:#000
+    style G8 fill:#5cb85c,color:#fff

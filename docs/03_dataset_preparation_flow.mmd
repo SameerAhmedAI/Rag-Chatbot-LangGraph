@@ -1,0 +1,9 @@
+graph TD
+    A[Raw source data] --> B[Collection and deduplication]
+    B --> C[Cleaning - remove noise formatting artifacts PII]
+    C --> D[Formatting into instruction-response or chat pairs]
+    D --> E[Splitting - train validation test sets]
+    E --> F[Quality filtering - remove low-quality or off-distribution examples]
+    F --> G[Fine-tuning-ready dataset]
+    style A fill:#4a90d9,color:#fff
+    style G fill:#5cb85c,color:#fff

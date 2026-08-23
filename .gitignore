@@ -27,3 +27,5 @@ data/chroma_db/*
 
 # Pytest
 .pytest_cache/
+
+payload.json

@@ -12,7 +12,13 @@ stateDiagram-v2
     note right of Router
         Classifies question as
         needing document retrieval
-        vs general conversation
+        vs general conversation.
+        Uses recent conversation
+        history to correctly route
+        short follow-ups like
+        "why did that happen?"
+        that carry no topic signal
+        on their own.
     end note
 
     note right of Retrieve

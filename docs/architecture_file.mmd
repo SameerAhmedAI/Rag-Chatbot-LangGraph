@@ -11,14 +11,14 @@ graph TD
     D --> E[Text Chunking - RecursiveCharacterTextSplitter - 1000 chars 150 overlap]
     E --> F[Embedding - sentence-transformers - all-MiniLM-L6-v2]
     F --> G[ChromaDB Persisted Vector Store]
-    H[User Question] --> I[Query Rewriter - resolves follow-up pronouns using chat history]
+    H[User Question plus Session History] --> I[Query Rewriter - resolves follow-up pronouns using chat history]
     I --> J[Similarity Search top-k retrieval]
     G --> J
     J --> K[Formatted Context plus Source Citations]
     K --> L{Endpoint}
     L -->|chat| M[LangChain QA Chain - Intermediate Level]
-    L -->|agent-chat| N[LangGraph Agent - Advanced Level]
-    M --> O[Groq LLM - Llama 3.3 70B]
+    L -->|agent-chat| N[LangGraph Agent - Advanced Level - Router uses history to classify rag vs general]
+    M --> O[Groq LLM - GPT-OSS-120B]
     N --> O
     O --> P[Answer plus Sources]
     P --> Q[Update Session Memory]
